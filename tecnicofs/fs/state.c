@@ -1,4 +1,5 @@
 #include "state.h"
+#include "config.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -85,6 +86,12 @@ void state_init() {
 void state_destroy() { /* nothing to do */
 }
 
+void setDataBlocksIndex(inode_t inode, int first_index) {
+    for (int i = 0; i < BLOCK_NUMBER; i++) {
+        inode.i_data_blocks[i] = first_index + i;
+    }
+}
+
 /*
  * Creates a new i-node in the i-node table.
  * Input:
@@ -115,7 +122,7 @@ int inode_create(inode_type n_type) {
                 }
 
                 inode_table[inumber].i_size = BLOCK_SIZE;
-                inode_table[inumber].i_data_block = b;
+                setDataBlocksIndex(inode_table[inumber], b);
 
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
@@ -129,8 +136,8 @@ int inode_create(inode_type n_type) {
             } else {
                 /* In case of a new file, simply sets its size to 0 */
                 inode_table[inumber].i_size = 0;
-                inode_table[inumber].i_data_block = -1;
-                inode_table[inumber].i_extra_blocks = -1;
+                setDataBlocksIndex(inode_table[inumber], -1);
+                //inode_table[inumber].i_extra_blocks = -1; -- TO DO
             }
             return inumber;
         }
@@ -156,9 +163,12 @@ int inode_delete(int inumber) {
     freeinode_ts[inumber] = FREE;
 
     if (inode_table[inumber].i_size > 0) {
-        if (data_block_free(inode_table[inumber].i_data_block) == -1) {
+        int count = 0;
+        for (int i = 0; i < BLOCK_NUMBER; i++)
+            if (data_block_free(inode_table[inumber].i_data_blocks[i]) == -1)
+                count++;
+        if (count == BLOCK_NUMBER)
             return -1;
-        }
     }
 
     /* TODO: handle non-empty directories (either return error, or recursively
@@ -205,8 +215,7 @@ int add_dir_entry(int inumber, int sub_inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    dir_entry_t *dir_entry =
-        (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
     if (dir_entry == NULL) {
         return -1;
     }
