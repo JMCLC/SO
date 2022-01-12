@@ -52,3 +52,9 @@ Mkfile.old
 dkms.conf
 tecnicofs/.vscode/launch.json
 tecnicofs/.vscode/tasks.json
+tecnicofs/tests/copy_to_external_errors
+tecnicofs/tests/copy_to_external_simple
+tecnicofs/tests/test1
+tecnicofs/tests/write_10_blocks_simple
+tecnicofs/tests/write_10_blocks_spill
+tecnicofs/tests/write_more_than_10_blocks_simple

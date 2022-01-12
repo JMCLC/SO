@@ -95,7 +95,7 @@ void state_destroy() { /* nothing to do */
  */
 int inode_create(inode_type n_type) {
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
-        if ((inumber * (int) sizeof(allocation_state_t)) == 0) {
+        if ((inumber * (int) sizeof(allocation_state_t) % BLOCK_SIZE) == 0) {
             insert_delay(); // simulate storage access delay (to freeinode_ts)
         }
 
@@ -135,7 +135,6 @@ int inode_create(inode_type n_type) {
                 for (int i = 0; i < BLOCK_NUMBER; i++) {
                     inode_table[inumber].i_data_blocks[i] = -1;
                 }
-                printf("Created New INode");
                 //inode_table[inumber].i_extra_blocks = -1; -- TO DO
             }
             return inumber;
@@ -169,10 +168,7 @@ int inode_delete(int inumber) {
         if (count == BLOCK_NUMBER)
             return -1;
     }
-
-    /* TODO: handle non-empty directories (either return error, or recursively
-     * delete children */
-
+    
     return 0;
 }
 

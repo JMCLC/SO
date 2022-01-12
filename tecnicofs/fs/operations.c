@@ -99,8 +99,6 @@ int tfs_open(char const *name, int flags) {
 int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
-    size_t blocks_needed;
-    
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         return -1;
@@ -111,14 +109,11 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     if (inode == NULL) {
         return -1;
     }
-    /* Determine how many bytes to write */
-    if (to_write + file->of_offset > BLOCK_SIZE * BLOCK_NUMBER) {
-        to_write = BLOCK_SIZE * BLOCK_NUMBER - file->of_offset;
-        blocks_needed = 10;
-    } else
-        blocks_needed = (to_write + file->of_offset) / BLOCK_SIZE;
-    printf("%ld", blocks_needed);
 
+    /* Determine how many bytes to write */
+    if (to_write + file->of_offset > BLOCK_SIZE) {
+        to_write = BLOCK_SIZE * BLOCK_NUMBER - file->of_offset;
+    }
 
     if (to_write > 0) {
         if (inode->i_size == 0) {
@@ -126,16 +121,18 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             for (int i = 0; i < BLOCK_NUMBER; i++)
                 inode->i_data_blocks[i] = data_block_alloc();
         }
-        for (int i = 0; i < BLOCK_NUMBER; i++) {
-            void *block = data_block_get(inode->i_data_blocks[i]);
-            if (block == NULL)
-                return -1;
+
+        void *block = data_block_get(inode->i_data_blocks[0]);
+        if (block == NULL) {
+            return -1;
         }
+
         /* Perform the actual write */
-        for (int i = 0; i < blocks_needed; i++) {
-            void *block = data_block_get(inode->i_data_blocks[i]);
-            memcpy(block + file->of_offset, buffer, to_write);
+        for (int i = 0; i < BLOCK_NUMBER; i++) {
+            void *currentBlock = data_block_get(inode->i_data_blocks[i]);
+            memcpy(currentBlock + file->of_offset, buffer, to_write);
         }
+        //memcpy(block + file->of_offset, buffer, to_write);
 
         /* The offset associated with the file handle is
          * incremented accordingly */
@@ -150,7 +147,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
-    //int blocks_needed;
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         return -1;
@@ -168,21 +164,14 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         to_read = len;
     }
 
-    if (file->of_offset + to_read >= BLOCK_SIZE) {
-        return -1;
-    }
-
     if (to_read > 0) {
-        for (int i = 0; i < BLOCK_NUMBER; i++) {
-            void *block = data_block_get(inode->i_data_blocks[i]);
-            if (block == NULL)
-                return -1;
+        void *block = data_block_get(inode->i_data_blocks[0]);
+        if (block == NULL) {
+            return -1;
         }
+
         /* Perform the actual read */
-        for (int i = 0; i < BLOCK_NUMBER; i++) {
-            void *block = data_block_get(inode->i_data_blocks[i]);
-            memcpy(buffer, block + file->of_offset, to_read);
-        }
+        memcpy(buffer, block + file->of_offset, to_read);
         /* The offset associated with the file handle is
          * incremented accordingly */
         file->of_offset += to_read;
@@ -191,10 +180,101 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     return (ssize_t)to_read;
 }
 
+// ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
+//     size_t blocks_needed;
+    
+//     open_file_entry_t *file = get_open_file_entry(fhandle);
+//     if (file == NULL) {
+//         return -1;
+//     }
+
+//     /* From the open file table entry, we get the inode */
+//     inode_t *inode = inode_get(file->of_inumber);
+//     if (inode == NULL) {
+//         return -1;
+//     }
+//     /* Determine how many bytes to write */
+//     if (to_write + file->of_offset > BLOCK_SIZE * BLOCK_NUMBER) {
+//         to_write = BLOCK_SIZE * BLOCK_NUMBER - file->of_offset;
+//         blocks_needed = 10;
+//     } else
+//         blocks_needed = (to_write + file->of_offset) / BLOCK_SIZE;
+
+
+//     if (to_write > 0) {
+//         if (inode->i_size == 0) {
+//             /* If empty file, allocate new block */
+//             for (int i = 0; i < BLOCK_NUMBER; i++)
+//                 inode->i_data_blocks[i] = data_block_alloc();
+//         }
+//         for (int i = 0; i < BLOCK_NUMBER; i++) {
+//             void *block = data_block_get(inode->i_data_blocks[i]);
+//             if (block == NULL)
+//                 return -1;
+//         }
+//         /* Perform the actual write */
+//         for (int i = 0; i < blocks_needed; i++) {
+//             void *block = data_block_get(inode->i_data_blocks[i]);
+//             memcpy(block + file->of_offset, buffer, to_write);
+//         }
+
+//         /* The offset associated with the file handle is
+//          * incremented accordingly */
+//         file->of_offset += to_write;
+//         if (file->of_offset > inode->i_size) {
+//             inode->i_size = file->of_offset;
+//         }
+//     }
+
+//     return (ssize_t)to_write;
+// }
+
+
+// ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
+//     //int blocks_needed;
+//     open_file_entry_t *file = get_open_file_entry(fhandle);
+//     if (file == NULL) {
+//         return -1;
+//     }
+
+//     /* From the open file table entry, we get the inode */
+//     inode_t *inode = inode_get(file->of_inumber);
+//     if (inode == NULL) {
+//         return -1;
+//     }
+
+//     /* Determine how many bytes to read */
+//     size_t to_read = inode->i_size - file->of_offset;
+//     if (to_read > len) {
+//         to_read = len;
+//     }
+
+//     if (to_read > 0) {
+//         for (int i = 0; i < BLOCK_NUMBER; i++) {
+//             void *block = data_block_get(inode->i_data_blocks[i]);
+//             if (block == NULL)
+//                 return -1;
+//         }
+//         /* Perform the actual read */
+//         for (int i = 0; i < BLOCK_NUMBER; i++) {
+//             void *block = data_block_get(inode->i_data_blocks[i]);
+//             memcpy(buffer, block + file->of_offset, to_read);
+//         }
+//         /* The offset associated with the file handle is
+//          * incremented accordingly */
+//         file->of_offset += to_read;
+//     }
+
+//     return (ssize_t)to_read;
+// }
+
 int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
-    //char* data;
     int source = tfs_open(source_path, TFS_O_APPEND), dest = tfs_open(dest_path, TFS_O_CREAT);
     if (source == -1 || dest == -1)
         return -1;
+    int inode = tfs_lookup(dest_path);
+    char sourceBuffer[256], destBuffer[256];
+    tfs_read(source, sourceBuffer, 256);
+    tfs_write(dest, sourceBuffer, 256);
     return 0;
 }

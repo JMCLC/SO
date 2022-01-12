@@ -20,7 +20,7 @@ int main() {
        always hit a single block (since 1KB is a multiple of SIZE=256) */
     char input[SIZE]; 
     memset(input, 'A', SIZE);
-
+    
     char output [SIZE];
 
     assert(tfs_init() != -1);
@@ -40,7 +40,7 @@ int main() {
     for (int i = 0; i < COUNT; i++) {
         assert(tfs_read(fd, output, SIZE) == SIZE);
         assert (memcmp(input, output, SIZE) == 0);
-    }
+    }        
 
     assert(tfs_close(fd) != -1);
 
