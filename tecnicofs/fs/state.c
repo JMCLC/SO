@@ -86,12 +86,6 @@ void state_init() {
 void state_destroy() { /* nothing to do */
 }
 
-void setDataBlocksIndex(inode_t inode, int first_index) {
-    for (int i = 0; i < BLOCK_NUMBER; i++) {
-        inode.i_data_blocks[i] = first_index + i;
-    }
-}
-
 /*
  * Creates a new i-node in the i-node table.
  * Input:
@@ -122,7 +116,9 @@ int inode_create(inode_type n_type) {
                 }
 
                 inode_table[inumber].i_size = BLOCK_SIZE;
-                setDataBlocksIndex(inode_table[inumber], b);
+                for (int i = 0; i < BLOCK_NUMBER; i++) {
+                    inode_table[inumber].i_data_blocks[i] = b + i;
+                }
 
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
@@ -136,7 +132,10 @@ int inode_create(inode_type n_type) {
             } else {
                 /* In case of a new file, simply sets its size to 0 */
                 inode_table[inumber].i_size = 0;
-                setDataBlocksIndex(inode_table[inumber], -1);
+                for (int i = 0; i < BLOCK_NUMBER; i++) {
+                    inode_table[inumber].i_data_blocks[i] = -1;
+                }
+                printf("Created New INode");
                 //inode_table[inumber].i_extra_blocks = -1; -- TO DO
             }
             return inumber;
@@ -215,7 +214,7 @@ int add_dir_entry(int inumber, int sub_inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode_table[inumber].i_data_blocks[0]);
     if (dir_entry == NULL) {
         return -1;
     }
@@ -248,7 +247,7 @@ int find_in_dir(int inumber, char const *sub_name) {
 
     /* Locates the block containing the directory's entries */
     dir_entry_t *dir_entry =
-        (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
+        (dir_entry_t *)data_block_get(inode_table[inumber].i_data_blocks[0]);
     if (dir_entry == NULL) {
         return -1;
     }
@@ -281,7 +280,7 @@ int data_block_alloc() {
     }
     int n = 0;
     // p e o ponteiro
-    for (int i = 0; i < n; i++, p++) {
+    for (int i = 0; i < n; i++) {
         if (i * (int) sizeof(allocation_state_t) % BLOCK_SIZE == 0) {
             insert_delay(); // simulate storage access delay to free_blocks
         }

@@ -12,7 +12,7 @@ int main() {
 
     int f;
     ssize_t r;
-    
+
     f = tfs_open(path, TFS_O_CREAT);
     assert(f != -1);
 
