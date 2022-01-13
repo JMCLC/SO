@@ -24,6 +24,7 @@ typedef struct {
     inode_type i_node_type;
     size_t i_size;
     int i_data_blocks[10];
+    int i_data_blocks_space[10];
     //int i_data_block;
     //int i_extra_blocks; -- TO DO
     /* in a real FS, more fields would exist here */

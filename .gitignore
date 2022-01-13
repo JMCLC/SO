@@ -58,3 +58,4 @@ tecnicofs/tests/test1
 tecnicofs/tests/write_10_blocks_simple
 tecnicofs/tests/write_10_blocks_spill
 tecnicofs/tests/write_more_than_10_blocks_simple
+*.json

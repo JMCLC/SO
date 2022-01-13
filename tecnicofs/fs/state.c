@@ -18,8 +18,8 @@ static char freeinode_ts[INODE_TABLE_SIZE];
 static char fs_data[BLOCK_SIZE * DATA_BLOCKS];
 static char free_blocks[DATA_BLOCKS];
 
-int i_extra_blocks[BLOCK_SIZE];
-char *extra_blocks;
+//int i_extra_blocks[BLOCK_SIZE];
+//char *extra_blocks;
 
 
 /* Volatile FS state */
@@ -120,6 +120,10 @@ int inode_create(inode_type n_type) {
                     inode_table[inumber].i_data_blocks[i] = b + i;
                 }
 
+                for (int i = 0; i < BLOCK_NUMBER; i++) {
+                    inode_table[inumber].i_data_blocks_space[i] = 1024;
+                }
+
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
                     freeinode_ts[inumber] = FREE;
@@ -134,6 +138,10 @@ int inode_create(inode_type n_type) {
                 inode_table[inumber].i_size = 0;
                 for (int i = 0; i < BLOCK_NUMBER; i++) {
                     inode_table[inumber].i_data_blocks[i] = -1;
+                }
+
+                for (int i = 0; i < BLOCK_NUMBER; i++) {
+                    inode_table[inumber].i_data_blocks_space[i] = 1024;
                 }
                 //inode_table[inumber].i_extra_blocks = -1; -- TO DO
             }
