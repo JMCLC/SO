@@ -76,12 +76,14 @@ int tfs_open(char const *name, int flags) {
         if (inum == -1) {
             return -1;
         }
+        
         /* Add entry in the root directory */
         if (add_dir_entry(ROOT_DIR_INUM, inum, name + 1) == -1) {
-            inode_delete(inum);
+            inode_delete(inum); 
             return -1;
         }
         offset = 0;
+        
     } else {
         return -1;
     }
@@ -103,18 +105,16 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     if (file == NULL) {
         return -1;
     } 
-
     /* From the open file table entry, we get the inode */
     inode_t *inode = inode_get(file->of_inumber);
     if (inode == NULL) {
         return -1;
     }
-
     /* Determine how many bytes to write */
-    if (to_write + file->of_offset > BLOCK_SIZE * BLOCK_NUMBER) {
-        to_write = BLOCK_SIZE - file->of_offset;
-    }
-    
+    // if (to_write + file->of_offset > BLOCK_SIZE * BLOCK_NUMBER) {
+    //     to_write = BLOCK_SIZE - file->of_offset;
+    //     printf("%d, %d, %d \n", (int) to_write, BLOCK_SIZE, (int)file->of_offset);
+    // }
     if (to_write > 0) {
         if (inode->i_size == 0) {
             /* If empty file, allocate new block */
@@ -122,16 +122,47 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 inode->i_data_blocks[i] = data_block_alloc();
         }
         
-        for (int i = 0; i < BLOCK_NUMBER; i++) {
-            void *currentBlock = data_block_get(inode->i_data_blocks[i]);
-            if (currentBlock == NULL)
-                return -1;
-            printf("block: %d, spaceLeft: %d, to write: %d, offset: %d  \n", i+1, inode->i_data_blocks_space[i], (int) to_write, (int)file->of_offset);
-            if (inode->i_data_blocks_space[i] >= (int) to_write) {
-                memcpy(currentBlock + file->of_offset, buffer, to_write);
-                inode->i_data_blocks_space[i] -= (int) to_write;
-                break;
+        if ((int)file->of_offset < BLOCK_SIZE * BLOCK_NUMBER) {
+            for (int i = 0; i < BLOCK_NUMBER; i++) {
+                void *currentBlock = data_block_get(inode->i_data_blocks[i]);
+                if (currentBlock == NULL)
+                    return -1;
+                if (inode->i_data_blocks_space[i] >= (int) to_write) {
+                    //printf("block: %d, spaceLeft: %d, to write: %d, offset: %d  \n", i+1, inode->i_data_blocks_space[i], (int) to_write, (int)file->of_offset);
+                    memcpy(currentBlock + file->of_offset, buffer, to_write);
+                    inode->i_data_blocks_space[i] -= (int) to_write;
+                    break;
+                }
             }
+        } else {
+            printf("Arrived here\n");
+            if (*(inode->i_extra_blocks) == 0) {
+                printf("Arrived here 2 \n");
+                *(inode->i_extra_blocks) = data_block_alloc();
+                *(inode->i_extra_blocks_space) = BLOCK_SIZE;
+            }
+            //inode->i_extra_blocks++;
+            void *currentBlock = NULL;
+            printf("Arrived here 3\n");
+            while (*(inode->i_extra_blocks) != 0) {
+                if (*(inode->i_extra_blocks_space) >= to_write) {
+                    currentBlock = data_block_get(*(inode->i_extra_blocks));
+                    break;
+                }
+                inode->i_extra_blocks_space++;
+                inode->i_extra_blocks++;
+            }
+            printf("Arrived here 4\n");
+            if (currentBlock == NULL) {
+                *(inode->i_extra_blocks + 1) = data_block_alloc();
+                *(inode->i_extra_blocks_space + 1) = BLOCK_SIZE;
+                inode->i_extra_blocks_space++;
+                inode->i_extra_blocks++;
+                currentBlock = data_block_get(*(inode->i_extra_blocks));
+            }
+            printf("Test Block: %d, spaceLeft: %d, to_write: %d, offset: %d\n", *(inode->i_extra_blocks), *(inode->i_extra_blocks_space), (int) to_write, (int) file->of_offset);
+            memcpy(currentBlock + file->of_offset, buffer, to_write);
+            *(inode->i_extra_blocks_space) -= (int) to_write;
         }
 
         /* The offset associated with the file handle is
@@ -150,7 +181,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     if (file == NULL) {
         return -1;
     }
-
     /* From the open file table entry, we get the inode */
     inode_t *inode = inode_get(file->of_inumber);
     if (inode == NULL) {
@@ -170,12 +200,11 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             if (currentBlock == NULL)
                 return -1;
             //printf("block: %d, spaceOccupied: %d, to read: %d, offset: %d \n", i+1, BLOCK_SIZE - inode->i_data_blocks_space[i], (int) to_read, (int)file->of_offset);
-            if (BLOCK_SIZE - (int)file->of_offset >= (int) to_read) {
+            if (BLOCK_SIZE - (int) file->of_offset >= (int) to_read) {
                 memcpy(buffer, currentBlock + file->of_offset, to_read);
                 break;
             }
         }
-        //memcpy(buffer, block + file->of_offset, to_read);
         /* The offset associated with the file handle is
          * incremented accordingly */
         file->of_offset += to_read;
@@ -185,12 +214,15 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
-    int source = tfs_open(source_path, TFS_O_APPEND), dest = tfs_open(dest_path, TFS_O_CREAT);
-    if (source == -1 || dest == -1)
+    int source = tfs_open(source_path, 0);
+    FILE *dest = fopen(dest_path, "a");
+    if (source == -1 || dest == NULL)
         return -1;
-    //int inode = tfs_lookup(dest_path);
-    char sourceBuffer[256];
-    tfs_read(source, sourceBuffer, 256);
-    tfs_write(dest, sourceBuffer, 256);
+    char sourceBuffer[BLOCK_SIZE];
+    for (int i = 0; i < BLOCK_NUMBER; i++) { // Should be changed to work with 11 + blocks
+        tfs_read(source, sourceBuffer, BLOCK_SIZE);
+        fwrite(sourceBuffer, 1, BLOCK_SIZE, dest);
+    }
+    fclose(dest);
     return 0;
 }

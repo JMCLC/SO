@@ -18,8 +18,7 @@ static char freeinode_ts[INODE_TABLE_SIZE];
 static char fs_data[BLOCK_SIZE * DATA_BLOCKS];
 static char free_blocks[DATA_BLOCKS];
 
-//int i_extra_blocks[BLOCK_SIZE];
-//char *extra_blocks;
+char* extra_blocks;
 
 
 /* Volatile FS state */
@@ -81,6 +80,8 @@ void state_init() {
     for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
         free_open_file_entries[i] = FREE;
     }
+
+    extra_blocks = (char *) malloc(0);
 }
 
 void state_destroy() { /* nothing to do */
@@ -121,8 +122,11 @@ int inode_create(inode_type n_type) {
                 }
 
                 for (int i = 0; i < BLOCK_NUMBER; i++) {
-                    inode_table[inumber].i_data_blocks_space[i] = 1024;
+                    inode_table[inumber].i_data_blocks_space[i] = BLOCK_SIZE;
                 }
+
+                inode_table[inumber].i_extra_blocks = (int *) malloc(0);
+                inode_table[inumber].i_extra_blocks_space = (int *) malloc(0);
 
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
@@ -141,9 +145,11 @@ int inode_create(inode_type n_type) {
                 }
 
                 for (int i = 0; i < BLOCK_NUMBER; i++) {
-                    inode_table[inumber].i_data_blocks_space[i] = 1024;
+                    inode_table[inumber].i_data_blocks_space[i] = BLOCK_SIZE;
                 }
-                //inode_table[inumber].i_extra_blocks = -1; -- TO DO
+
+                inode_table[inumber].i_extra_blocks = (int *) malloc(0);
+                inode_table[inumber].i_extra_blocks_space = (int *) malloc(0);
             }
             return inumber;
         }
@@ -282,15 +288,17 @@ int data_block_alloc() {
             return i;
         }
     }
-    int n = 0;
-    // p e o ponteiro
-    for (int i = 0; i < n; i++) {
-        if (i * (int) sizeof(allocation_state_t) % BLOCK_SIZE == 0) {
-            insert_delay(); // simulate storage access delay to free_blocks
-        }
-
-    }
     return -1;
+}
+
+int data_extra_block_alloc() {
+    int i = 0;
+    while (*extra_blocks != 0) {
+        i++;
+        extra_blocks++;
+    }
+    *(extra_blocks + 1) = TAKEN;
+    return i;
 }
 
 /* Frees a data block
@@ -333,7 +341,7 @@ int add_to_open_file_table(int inumber, size_t offset) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
             open_file_table[i].of_inumber = inumber;
-            open_file_table[i].of_offset = offset;
+            open_file_table[i].of_offset = offset;    
             return i;
         }
     }
