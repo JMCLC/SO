@@ -18,8 +18,6 @@ static char freeinode_ts[INODE_TABLE_SIZE];
 static char fs_data[BLOCK_SIZE * DATA_BLOCKS];
 static char free_blocks[DATA_BLOCKS];
 
-char* extra_blocks;
-
 
 /* Volatile FS state */
 
@@ -81,7 +79,6 @@ void state_init() {
         free_open_file_entries[i] = FREE;
     }
 
-    extra_blocks = (char *) malloc(0);
 }
 
 void state_destroy() { /* nothing to do */
@@ -125,8 +122,8 @@ int inode_create(inode_type n_type) {
                     inode_table[inumber].i_data_blocks_space[i] = BLOCK_SIZE;
                 }
 
-                inode_table[inumber].i_extra_blocks = (int *) malloc(0);
-                inode_table[inumber].i_extra_blocks_space = (int *) malloc(0);
+                inode_table[inumber].i_extra_blocks = (int *) malloc(BLOCK_SIZE);
+                inode_table[inumber].i_extra_blocks_space = (int *) malloc(BLOCK_SIZE);
 
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
@@ -148,8 +145,8 @@ int inode_create(inode_type n_type) {
                     inode_table[inumber].i_data_blocks_space[i] = BLOCK_SIZE;
                 }
 
-                inode_table[inumber].i_extra_blocks = (int *) malloc(0);
-                inode_table[inumber].i_extra_blocks_space = (int *) malloc(0);
+                inode_table[inumber].i_extra_blocks = (int *) malloc(BLOCK_SIZE);
+                inode_table[inumber].i_extra_blocks_space = (int *) malloc(BLOCK_SIZE);
             }
             return inumber;
         }
@@ -289,16 +286,6 @@ int data_block_alloc() {
         }
     }
     return -1;
-}
-
-int data_extra_block_alloc() {
-    int i = 0;
-    while (*extra_blocks != 0) {
-        i++;
-        extra_blocks++;
-    }
-    *(extra_blocks + 1) = TAKEN;
-    return i;
 }
 
 /* Frees a data block

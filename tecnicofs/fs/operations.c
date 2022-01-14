@@ -128,22 +128,17 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 if (currentBlock == NULL)
                     return -1;
                 if (inode->i_data_blocks_space[i] >= (int) to_write) {
-                    //printf("block: %d, spaceLeft: %d, to write: %d, offset: %d  \n", i+1, inode->i_data_blocks_space[i], (int) to_write, (int)file->of_offset);
                     memcpy(currentBlock + file->of_offset, buffer, to_write);
                     inode->i_data_blocks_space[i] -= (int) to_write;
                     break;
                 }
             }
         } else {
-            printf("Arrived here\n");
             if (*(inode->i_extra_blocks) == 0) {
-                printf("Arrived here 2 \n");
                 *(inode->i_extra_blocks) = data_block_alloc();
                 *(inode->i_extra_blocks_space) = BLOCK_SIZE;
             }
-            //inode->i_extra_blocks++;
             void *currentBlock = NULL;
-            printf("Arrived here 3\n");
             while (*(inode->i_extra_blocks) != 0) {
                 if (*(inode->i_extra_blocks_space) >= to_write) {
                     currentBlock = data_block_get(*(inode->i_extra_blocks));
@@ -152,7 +147,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 inode->i_extra_blocks_space++;
                 inode->i_extra_blocks++;
             }
-            printf("Arrived here 4\n");
             if (currentBlock == NULL) {
                 *(inode->i_extra_blocks + 1) = data_block_alloc();
                 *(inode->i_extra_blocks_space + 1) = BLOCK_SIZE;
@@ -160,9 +154,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 inode->i_extra_blocks++;
                 currentBlock = data_block_get(*(inode->i_extra_blocks));
             }
-            printf("Test Block: %d, spaceLeft: %d, to_write: %d, offset: %d\n", *(inode->i_extra_blocks), *(inode->i_extra_blocks_space), (int) to_write, (int) file->of_offset);
+            *(inode->i_extra_blocks_space) = *(inode->i_extra_blocks_space) - (int) to_write;
             memcpy(currentBlock + file->of_offset, buffer, to_write);
-            *(inode->i_extra_blocks_space) -= (int) to_write;
         }
 
         /* The offset associated with the file handle is
@@ -195,14 +188,26 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     if (to_read > 0) {
         /* Perform the actual read */
-        for (int i = 0; i < BLOCK_NUMBER; i++) {
-            void *currentBlock = data_block_get(inode->i_data_blocks[i]);
-            if (currentBlock == NULL)
-                return -1;
-            //printf("block: %d, spaceOccupied: %d, to read: %d, offset: %d \n", i+1, BLOCK_SIZE - inode->i_data_blocks_space[i], (int) to_read, (int)file->of_offset);
-            if (BLOCK_SIZE - (int) file->of_offset >= (int) to_read) {
-                memcpy(buffer, currentBlock + file->of_offset, to_read);
-                break;
+        if ((int)file->of_offset < BLOCK_SIZE * BLOCK_NUMBER) {
+            for (int i = 0; i < BLOCK_NUMBER; i++) {
+                void *currentBlock = data_block_get(inode->i_data_blocks[i]);
+                if (currentBlock == NULL)
+                    return -1;
+                if (BLOCK_SIZE - (int) file->of_offset >= (int) to_read) {
+                    memcpy(buffer, currentBlock + file->of_offset, to_read);
+                    break;
+                }
+            }
+        } else {
+            void *currentBlock = NULL;
+            while (*(inode->i_extra_blocks) != 0) {
+                if (*(inode->i_extra_blocks_space) >= to_read) {
+                    currentBlock = data_block_get(*(inode->i_extra_blocks));
+                    memcpy(buffer, currentBlock + file->of_offset, to_read);
+                    break;
+                }
+                inode->i_extra_blocks_space++;
+                inode->i_extra_blocks++;
             }
         }
         /* The offset associated with the file handle is
