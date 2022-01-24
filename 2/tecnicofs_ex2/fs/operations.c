@@ -6,6 +6,8 @@
 #include <string.h>
 
 static pthread_mutex_t single_global_lock;
+pthread_cond_t cond;
+int numberOfOpenFiles = 0;
 
 int tfs_init() {
     state_init();
@@ -36,6 +38,11 @@ static bool valid_pathname(char const *name) {
 
 int tfs_destroy_after_all_closed() {
     /* TO DO: implement this */
+    while (numberOfOpenFiles >= 1) {
+        pthread_cond_wait(&cond, &single_global_lock);
+    }
+    tfs_destroy();
+    
     return 0;
 }
 
@@ -105,6 +112,7 @@ static int _tfs_open_unsynchronized(char const *name, int flags) {
 
     /* Finally, add entry to the open file table and
      * return the corresponding handle */
+    numberOfOpenFiles++;
     return add_to_open_file_table(inum, offset);
 
     /* Note: for simplification, if file was created with TFS_O_CREAT and there
@@ -116,6 +124,7 @@ int tfs_open(char const *name, int flags) {
     if (pthread_mutex_lock(&single_global_lock) != 0)
         return -1;
     int ret = _tfs_open_unsynchronized(name, flags);
+    pthread_cond_signal(&cond);
     if (pthread_mutex_unlock(&single_global_lock) != 0)
         return -1;
 
@@ -126,6 +135,8 @@ int tfs_close(int fhandle) {
     if (pthread_mutex_lock(&single_global_lock) != 0)
         return -1;
     int r = remove_from_open_file_table(fhandle);
+    numberOfOpenFiles--;
+    pthread_cond_signal(&cond);
     if (pthread_mutex_unlock(&single_global_lock) != 0)
         return -1;
 
