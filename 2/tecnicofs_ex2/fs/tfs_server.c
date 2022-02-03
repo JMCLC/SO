@@ -38,20 +38,24 @@ int main(int argc, char **argv) {
         return -1;
     }
     int numberOfConnections = 0;
+    char lastCommand[BUFFER_SIZE];
     while (1) {
         char buffer[BUFFER_SIZE];
         ssize_t read_size = read(rx, buffer, BUFFER_SIZE);
-        if (buffer[0] == '1' && numberOfConnections == 0) {
-            printf("Received this: size: %ld info: %s \n", read_size, buffer);
-            for (int i = 1; i < BUFFER_SIZE; i++) {
-                pipes[numberOfConnections][i-1] = buffer[i]; 
-            }
-            numberOfConnections += 1;
-            int write_info = open(pipename, O_WRONLY);
-            ssize_t write_size = write(rx, "0", 2);
-            printf("wrote to client: %ld \n", write_size);
-            close(write_info);
+        if (strcmp(buffer, lastCommand) != 0) {
+            if (buffer[0] == '1' && numberOfConnections == 0) {
+                printf("Received this: size: %ld info: %s \n", read_size, buffer);
+                for (int i = 1; i < BUFFER_SIZE; i++) {
+                    pipes[numberOfConnections][i-1] = buffer[i]; 
+                }
+                numberOfConnections += 1;
+                int write_info = open(pipename, O_WRONLY);
+                ssize_t write_size = write(rx, "0", 2);
+                printf("wrote to client: %ld \n", write_size);
+                close(write_info);
+            } else if (buffer[0] == '2') {}
         }
+        strcpy(lastCommand, buffer);
     }
 
     return 0;
