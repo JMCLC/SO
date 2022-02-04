@@ -37,7 +37,6 @@ static bool valid_pathname(char const *name) {
 }
 
 int tfs_destroy_after_all_closed() {
-    /* TO DO: implement this */
     while (numberOfOpenFiles >= 1) {
         pthread_cond_wait(&cond, &single_global_lock);
     }
